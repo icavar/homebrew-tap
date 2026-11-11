@@ -4,7 +4,7 @@
 source connection manager for SSH, telnet and serial consoles.
 
 ```sh
-brew install --cask icavar/tap/yacm
+brew install --cask yacm-app/tap/yacm
 ```
 
 Update with `brew upgrade --cask yacm`. The cask installs the signed and
