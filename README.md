@@ -13,4 +13,7 @@ notarised `YACM.app` from the
 `brew uninstall --zap --cask yacm` also removes the sessions, the vault and
 the settings.
 
+A workflow moves the cask to each new release within three hours, after
+checking the disk image against its build provenance.
+
 Problems with YACM itself: [issues](https://github.com/icavar/yacm/issues).

@@ -1,0 +1,75 @@
+name: Update cask
+
+# Moves Casks/yacm.rb to the latest YACM release: version and the SHA-256 of
+# the .dmg, taken from the release's checksums and checked against its build
+# provenance. Runs every three hours and from Actions > Update cask > Run
+# workflow; does nothing while the cask is current.
+
+on:
+  schedule:
+    - cron: '47 */3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-cask
+  cancel-in-progress: false
+
+env:
+  SOURCE_REPO: icavar/yacm
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Latest release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --repo "$SOURCE_REPO" --json tagName -q .tagName)
+          version=${tag#v}
+          current=$(sed -n 's/^  version "\(.*\)"$/\1/p' Casks/yacm.rb)
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          if [ "$version" = "$current" ]; then
+            echo "The cask is at $current already."
+          else
+            echo "update=true" >>"$GITHUB_OUTPUT"
+            echo "Moving the cask from $current to $version."
+          fi
+
+      - name: Download and verify the disk image
+        if: steps.check.outputs.update == 'true'
+        id: dmg
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          dmg="YACM-$VERSION-macos.dmg"
+          mkdir -p "$RUNNER_TEMP/dl" && cd "$RUNNER_TEMP/dl"
+          gh release download "v$VERSION" --repo "$SOURCE_REPO" --pattern "$dmg" --pattern SHA256SUMS.txt
+          sha256sum --check --ignore-missing SHA256SUMS.txt
+          gh attestation verify "$dmg" --repo "$SOURCE_REPO" \
+            --signer-workflow "$SOURCE_REPO/.github/workflows/release.yml"
+          echo "sha256=$(sha256sum "$dmg" | cut -d' ' -f1)" >>"$GITHUB_OUTPUT"
+
+      - name: Update and push the cask
+        if: steps.check.outputs.update == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          SHA256: ${{ steps.dmg.outputs.sha256 }}
+        run: |
+          sed -i -e "s/^  version \".*\"$/  version \"$VERSION\"/" \
+                 -e "s/^  sha256 \".*\"$/  sha256 \"$SHA256\"/" Casks/yacm.rb
+          git diff --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "yacm $VERSION"
+          git push
