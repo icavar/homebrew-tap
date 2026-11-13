@@ -1,6 +1,6 @@
 cask "yacm" do
-  version "0.9.2"
-  sha256 "928c0c3cf84514f59830e3923d66ca869f05b4289954ef62e4536fdeaa6a1680"
+  version "0.9.3"
+  sha256 "840ba6881c9e79562b90b34995923a6991c22a5862745448e5e7ebbdccbaee9a"
 
   url "https://github.com/yacm-app/yacm/releases/download/v#{version}/YACM-#{version}-macos.dmg",
       verified: "github.com/yacm-app/yacm/"
